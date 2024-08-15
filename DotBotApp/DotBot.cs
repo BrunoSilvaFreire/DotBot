@@ -13,7 +13,10 @@ public class DotBot : IAsyncDisposable
     {
         _isReady = false;
         _executionTaskCompletion = new TaskCompletionSource();
-        _discordClient = new DiscordSocketClient(new DiscordSocketConfig());
+        _discordClient = new DiscordSocketClient(new DiscordSocketConfig
+        {
+            GatewayIntents = GatewayIntents.AllUnprivileged
+        });
         _discordClient.Log += Log;
         _discordClient.Ready += OnDiscordClientBecameReady;
     }
