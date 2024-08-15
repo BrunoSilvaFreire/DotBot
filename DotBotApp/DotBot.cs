@@ -6,12 +6,13 @@ namespace DotBot;
 public class DotBot : IAsyncDisposable
 {
     private readonly DiscordSocketClient _discordClient;
+    private readonly TaskCompletionSource _executionTaskCompletion;
     private bool _isReady;
 
     public DotBot()
     {
         _isReady = false;
-
+        _executionTaskCompletion = new TaskCompletionSource();
         _discordClient = new DiscordSocketClient(new DiscordSocketConfig());
         _discordClient.Log += Log;
         _discordClient.Ready += OnDiscordClientBecameReady;
@@ -62,5 +63,16 @@ public class DotBot : IAsyncDisposable
         await _discordClient.LogoutAsync();
         await _discordClient.StopAsync();
         await _discordClient.DisposeAsync();
+    }
+
+
+    public Task RunUntilCompletion()
+    {
+        return _executionTaskCompletion.Task;
+    }
+
+    public void Stop()
+    {
+        _executionTaskCompletion.SetResult();
     }
 }

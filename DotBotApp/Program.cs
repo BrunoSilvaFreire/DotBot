@@ -17,16 +17,27 @@ public static class Program
             return;
         }
 
-        await using (var bot = new DotBot())
+
+        DotBot? bot;
+        await using (bot = new DotBot())
         {
-            bool success = await bot.Connect(settings.Token);
+            var success = await bot.Connect(settings.Token);
             if (!success)
             {
                 Console.WriteLine("Unable to connect bot to discord.");
                 return;
             }
 
-            await Task.Delay(TimeSpan.FromSeconds(5));
+            async void SigIntListener(object? _, ConsoleCancelEventArgs args)
+            {
+                Console.WriteLine("Shutting down bot...");
+                bot.Stop();
+            }
+
+            Console.CancelKeyPress += SigIntListener;
+            await bot.RunUntilCompletion();
+            Console.CancelKeyPress -= SigIntListener;
+            Console.WriteLine("Bot has been shut down.");
         }
     }
 }
