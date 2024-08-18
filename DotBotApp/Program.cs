@@ -31,7 +31,7 @@ public static class Program
             async void SigIntListener(object? _, ConsoleCancelEventArgs args)
             {
                 Console.WriteLine("Shutting down bot...");
-                bot.Stop();
+                await bot.Stop();
             }
 
             Console.CancelKeyPress += SigIntListener;

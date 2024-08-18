@@ -1,24 +1,37 @@
 using Discord;
+using Discord.Interactions;
 using Discord.WebSocket;
+using DotBot.Services;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace DotBot;
 
 public class DotBot : IAsyncDisposable
 {
     private readonly DiscordSocketClient _discordClient;
-    private readonly TaskCompletionSource _executionTaskCompletion;
     private bool _isReady;
+    private readonly IHost _host;
 
     public DotBot()
     {
         _isReady = false;
-        _executionTaskCompletion = new TaskCompletionSource();
         _discordClient = new DiscordSocketClient(new DiscordSocketConfig
         {
             GatewayIntents = GatewayIntents.AllUnprivileged
         });
         _discordClient.Log += Log;
         _discordClient.Ready += OnDiscordClientBecameReady;
+
+        var builder = new HostBuilder()
+            .ConfigureServices(collection =>
+            {
+                collection.AddSingleton(_discordClient)
+                    .AddSingleton(x => new InteractionService(_discordClient))
+                    .AddSingleton<AudioService>()
+                    .AddSingleton<InteractionHandlerService>();
+            });
+        _host = builder.Build();
     }
 
     private Task OnDiscordClientBecameReady()
@@ -68,14 +81,26 @@ public class DotBot : IAsyncDisposable
         await _discordClient.DisposeAsync();
     }
 
-
-    public Task RunUntilCompletion()
+    private async Task Initialize()
     {
-        return _executionTaskCompletion.Task;
+        var services = new[]
+        {
+            _host.Services.GetRequiredService<InteractionHandlerService>()
+        };
+        await foreach (var initTask in services.Select(service => service.InitializeAsync()).ToAsyncEnumerable())
+        {
+            Console.WriteLine($"Initialized service {initTask}");
+        }
     }
 
-    public void Stop()
+    public async Task RunUntilCompletion()
     {
-        _executionTaskCompletion.SetResult();
+        await Initialize();
+        await _host.RunAsync();
+    }
+
+    public async Task Stop()
+    {
+        await _host.StopAsync();
     }
 }
