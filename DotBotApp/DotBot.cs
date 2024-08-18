@@ -29,6 +29,7 @@ public class DotBot : IAsyncDisposable
                 collection.AddSingleton(_discordClient)
                     .AddSingleton(x => new InteractionService(_discordClient))
                     .AddSingleton<AudioService>()
+                    .AddSingleton<QueueService>()
                     .AddSingleton<InteractionHandlerService>();
             });
         _host = builder.Build();

@@ -8,11 +8,15 @@ namespace DotBot.Modules;
 public class MusicModule : InteractionModuleBase
 {
     private AudioService _audioService;
+    private QueueService _queueService;
 
-    public MusicModule(AudioService audioService)
+    public MusicModule(AudioService audioService, QueueService queueService)
     {
         _audioService = audioService;
+        _queueService = queueService;
     }
+
+
 
     [SlashCommand("play", "Play a song from youtube.", runMode: RunMode.Async)]
     [Discord.Commands.RequireContext(ContextType.Guild)]
@@ -38,46 +42,53 @@ public class MusicModule : InteractionModuleBase
             await RespondAsync("Unable to load audio player for your voice channel 🤔.", ephemeral: true);
             return;
         }
-
-        await foreach (var state in player.PlayYoutubeImmediately(youtubeLink))
+        if (player.IsCurrentlyPlaying)
         {
-            switch (state)
+            _queueService.AddToQueue(youtubeLink);
+        }
+        else
+        {
+            await foreach (var state in player.PlayYoutubeImmediately(youtubeLink))
             {
-                case QueryingVideo queryingVideo:
-                    await FollowupAsync($"Querying video {queryingVideo.VideoId}", ephemeral: true);
-                    break;
-                case QueryingManifest queryingManifest:
-                    await ModifyOriginalResponseAsync(
-                        properties =>
+                switch (state)
+                {
+                    case QueryingVideo queryingVideo:
+                        await FollowupAsync($"Querying video {queryingVideo.VideoId}", ephemeral: true);
+                        break;
+                    case QueryingManifest queryingManifest:
+                        await ModifyOriginalResponseAsync(
+                            properties =>
+                            {
+                                properties.Content =
+                                    $"Querying manifest {queryingManifest.Video.Id} ({queryingManifest.Video.Title})";
+                            });
+                        break;
+                    case NoCandidateStream _:
+                        await ModifyOriginalResponseAsync(properties =>
+                            properties.Content = "No candidate stream found (DotBot only supports opus streams)."
+                        );
+                        await _audioService.CleanupAudioPlayerFor(user.VoiceChannel);
+                        break;
+                    case SelectingStream selectingStream:
+                        await ModifyOriginalResponseAsync(properties =>
                         {
-                            properties.Content =
-                                $"Querying manifest {queryingManifest.Video.Id} ({queryingManifest.Video.Title})";
+                            properties.Content = $"Selecting stream from {selectingStream.Streams.Count} streams";
                         });
-                    break;
-                case NoCandidateStream _:
-                    await ModifyOriginalResponseAsync(properties =>
-                        properties.Content = "No candidate stream found (DotBot only supports opus streams)."
-                    );
-                    await _audioService.CleanupAudioPlayerFor(user.VoiceChannel);
-                    break;
-                case SelectingStream selectingStream:
-                    await ModifyOriginalResponseAsync(properties =>
-                    {
-                        properties.Content = $"Selecting stream from {selectingStream.Streams.Count} streams";
-                    });
-                    break;
-                case Playing playing:
-                    await ModifyOriginalResponseAsync(
-                        properties =>
-                            properties.Content =
-                                $"Playing from stream {playing.StreamInfo} (bitrate: {playing.StreamInfo.Bitrate}, filesize: {playing.StreamInfo.Size}, container: {playing.StreamInfo.Container})"
-                    );
-                    break;
+                        break;
+                    case Playing playing:
+                        await ModifyOriginalResponseAsync(
+                            properties =>
+                                properties.Content =
+                                    $"Playing from stream {playing.StreamInfo} (bitrate: {playing.StreamInfo.Bitrate}, filesize: {playing.StreamInfo.Size}, container: {playing.StreamInfo.Container})"
+                        );
+                        break;
+                }
             }
+
+            await _audioService.CleanupAudioPlayerFor(user.VoiceChannel);
+            await RespondAsync($"Finished playing {youtubeLink}");
         }
 
-        await _audioService.CleanupAudioPlayerFor(user.VoiceChannel);
-        await RespondAsync($"Finished playing {youtubeLink}");
     }
 
     [SlashCommand("debugplay", "Play a song from the host's file system.", runMode: RunMode.Async)]
