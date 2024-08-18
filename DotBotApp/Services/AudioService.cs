@@ -154,6 +154,7 @@ public class AudioPlayer : IAsyncDisposable
 
     public AudioPlayer(IAudioChannel channel)
     {
+        IsCurrentlyPlaying = false;
         _channel = channel;
         _youtubeClient = new YoutubeClient();
     }
@@ -166,9 +167,12 @@ public class AudioPlayer : IAsyncDisposable
             .TryGetWithHighestBitrate();
     }
 
+    public bool IsCurrentlyPlaying { get; private set; }
+
     public async IAsyncEnumerable<VideoPlaybackState> PlayYoutubeImmediately(string link)
     {
         StopIfPlaying();
+        IsCurrentlyPlaying = true;
         if (_pcmOutputStream == null)
         {
             yield break;
@@ -205,6 +209,7 @@ public class AudioPlayer : IAsyncDisposable
 
     public async Task PlayStream(Stream opusStream)
     {
+        IsCurrentlyPlaying = true;
         var taskCompletionSource = new TaskCompletionSource<bool>();
         Debug.Assert(_pcmOutputStream != null, nameof(_pcmOutputStream) + " != null");
         _executor = new AudioTranspilationExecutor(
@@ -216,11 +221,13 @@ public class AudioPlayer : IAsyncDisposable
         thread.Start();
         await _pcmOutputStream.FlushAsync();
         await taskCompletionSource.Task;
+        IsCurrentlyPlaying = false;
     }
 
     private void StopIfPlaying()
     {
         _executor?.Stop();
+        IsCurrentlyPlaying = false;
     }
 
     public async Task Initialize()
