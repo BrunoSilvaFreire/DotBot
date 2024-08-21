@@ -60,7 +60,7 @@ public class DotBot : IAsyncDisposable
         }
 
         await _discordClient.StartAsync();
-        await _discordClient.SetStatusAsync(UserStatus.AFK);
+        await _discordClient.SetStatusAsync(UserStatus.Online);
         await EnsureIsReady();
 
         return _isReady;

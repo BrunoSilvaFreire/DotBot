@@ -45,6 +45,7 @@ public class MusicModule : InteractionModuleBase
         if (player.IsCurrentlyPlaying)
         {
             _queueService.AddToQueue(youtubeLink);
+            await ReplyAsync($"This music was add to the queue");
         }
         else
         {
@@ -87,6 +88,11 @@ public class MusicModule : InteractionModuleBase
 
             await _audioService.CleanupAudioPlayerFor(user.VoiceChannel);
             await RespondAsync($"Finished playing {youtubeLink}");
+
+            string nextSong = _queueService.RemoveFromQueue();
+            
+            await Play(nextSong);
+            
         }
 
     }
