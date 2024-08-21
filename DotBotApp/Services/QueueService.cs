@@ -11,11 +11,15 @@ public class QueueService
         this.queue.Add(youtubeLink);
     }
 
-    public string RemoveFromQueue()
+    public bool IsQueueEmpty ()
+    {
+        return queue.Count == 0;
+    }
+
+    public string NextSong ()
     {
         string nextSong = this.queue[0];
         this.queue.RemoveAt(0);
-
         return nextSong;
     }
 }

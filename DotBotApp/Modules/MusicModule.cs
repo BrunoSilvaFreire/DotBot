@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿using System.Drawing.Text;
+using Discord;
 using Discord.Interactions;
 using DotBot.Services;
 using ContextType = Discord.Commands.ContextType;
@@ -86,16 +87,56 @@ public class MusicModule : InteractionModuleBase
                 }
             }
 
+        if (_queueService.IsQueueEmpty())
+        {
             await _audioService.CleanupAudioPlayerFor(user.VoiceChannel);
             await RespondAsync($"Finished playing {youtubeLink}");
-
-            string nextSong = _queueService.RemoveFromQueue();
-            
+        }
+        else
+        {
+            string nextSong = _queueService.NextSong();
             await Play(nextSong);
-            
+        }
+                
+
+        }
+    }
+
+    [SlashCommand("next", "Skips the current song!", runMode: RunMode.Async)]
+    [Discord.Commands.RequireContext(ContextType.Guild)]
+    
+    private async Task NextSong()
+    {
+        await DeferAsync(true);
+
+        if (Context.User is not IGuildUser user)
+        {
+            await RespondAsync("User is not in a guild.", ephemeral: true);
+            return;
+        }
+        if (user.VoiceChannel == null)
+        {
+            await RespondAsync("You are not in a voice channel.", ephemeral: true);
+            return;
         }
 
+        var player = await _audioService.GetAudioPlayer(user.VoiceChannel);
+        if (player == null)
+        {
+            await RespondAsync("Unable to load audio player for your voice channel 🤔.", ephemeral: true);
+            return;
+        }
+        if (_queueService.IsQueueEmpty())
+        {
+            await RespondAsync("There's no more music on the queue", ephemeral: true);
+        }
+        else
+        {
+            string nextSong = _queueService.NextSong();
+            await Play(nextSong);
+        }
     }
+
 
     [SlashCommand("debugplay", "Play a song from the host's file system.", runMode: RunMode.Async)]
     [Discord.Commands.RequireContext(ContextType.Guild)]
